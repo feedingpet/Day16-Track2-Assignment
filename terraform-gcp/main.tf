@@ -35,7 +35,7 @@ resource "google_compute_router_nat" "nat" {
   }
 }
 
-# 5. Firewall: Allow IAP SSH (TCP 22) to GPU node
+# 5. Firewall: Allow IAP SSH (TCP 22) to CPU node
 resource "google_compute_firewall" "allow_iap_ssh" {
   name    = "allow-iap-ssh"
   network = google_compute_network.ai_vpc.name
@@ -47,7 +47,7 @@ resource "google_compute_firewall" "allow_iap_ssh" {
 
   # IAP's IP range for TCP forwarding
   source_ranges = ["35.235.240.0/20"]
-  target_tags   = ["gpu-node"]
+  target_tags   = ["cpu-node"]
 }
 
 # 6. Firewall: Allow Load Balancer health checks and traffic on port 8000
@@ -62,38 +62,38 @@ resource "google_compute_firewall" "allow_lb_healthcheck" {
 
   # GCP Load Balancer health check IP ranges
   source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
-  target_tags   = ["gpu-node"]
+  target_tags   = ["cpu-node"]
 }
 
-# 7. Service Account for GPU Node (least privilege)
-resource "google_service_account" "gpu_node_sa" {
-  account_id   = "gpu-node-sa"
-  display_name = "GPU Node Service Account"
+# 7. Service Account for CPU Node (least privilege)
+resource "google_service_account" "cpu_node_sa" {
+  account_id   = "cpu-node-sa"
+  display_name = "CPU Node Service Account"
 }
 
-resource "google_project_iam_member" "gpu_node_log_writer" {
+resource "google_project_iam_member" "cpu_node_log_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.gpu_node_sa.email}"
+  member  = "serviceAccount:${google_service_account.cpu_node_sa.email}"
 }
 
-resource "google_project_iam_member" "gpu_node_metric_writer" {
+resource "google_project_iam_member" "cpu_node_metric_writer" {
   project = var.project_id
   role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.gpu_node_sa.email}"
+  member  = "serviceAccount:${google_service_account.cpu_node_sa.email}"
 }
 
-# 8. GPU Node (Compute Engine VM in Private Subnet)
-resource "google_compute_instance" "gpu_node" {
-  name         = "ai-gpu-node"
+# 8. CPU Node (Compute Engine VM in Private Subnet)
+resource "google_compute_instance" "cpu_node" {
+  name         = "ai-cpu-node"
   machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["gpu-node"]
+  tags         = ["cpu-node"]
 
   boot_disk {
     initialize_params {
-      # Deep Learning VM image with CUDA pre-installed
-      image = "projects/deeplearning-platform-release/global/images/family/common-cu121-debian-11"
+      # Deep Learning VM image for CPU
+      image = "projects/deeplearning-platform-release/global/images/family/common-cpu-debian-11"
       size  = 100
       type  = "pd-ssd"
     }
@@ -105,18 +105,13 @@ resource "google_compute_instance" "gpu_node" {
     # No access_config block = no public IP (private only)
   }
 
-  guest_accelerator {
-    type  = var.gpu_type
-    count = var.gpu_count
-  }
-
   scheduling {
-    on_host_maintenance = "TERMINATE"
+    on_host_maintenance = "MIGRATE"
     automatic_restart   = true
   }
 
   service_account {
-    email  = google_service_account.gpu_node_sa.email
+    email  = google_service_account.cpu_node_sa.email
     scopes = ["cloud-platform"]
   }
 
@@ -133,10 +128,10 @@ resource "google_compute_instance" "gpu_node" {
 }
 
 # 9. Instance Group (unmanaged) for the Load Balancer backend
-resource "google_compute_instance_group" "gpu_group" {
-  name      = "ai-gpu-group"
+resource "google_compute_instance_group" "cpu_group" {
+  name      = "ai-cpu-group"
   zone      = var.zone
-  instances = [google_compute_instance.gpu_node.self_link]
+  instances = [google_compute_instance.cpu_node.self_link]
 
   named_port {
     name = "vllm"
@@ -166,7 +161,7 @@ resource "google_compute_backend_service" "vllm_backend" {
   health_checks         = [google_compute_health_check.vllm_hc.id]
 
   backend {
-    group           = google_compute_instance_group.gpu_group.id
+    group           = google_compute_instance_group.cpu_group.id
     balancing_mode  = "UTILIZATION"
     capacity_scaler = 1.0
   }

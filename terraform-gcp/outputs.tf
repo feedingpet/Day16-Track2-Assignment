@@ -8,17 +8,17 @@ output "api_endpoint" {
   value       = "http://${google_compute_global_forwarding_rule.vllm_fwd.ip_address}/v1"
 }
 
-output "gpu_node_name" {
-  description = "Name of the GPU Compute Engine instance"
-  value       = google_compute_instance.gpu_node.name
+output "cpu_node_name" {
+  description = "Name of the CPU Compute Engine instance"
+  value       = google_compute_instance.cpu_node.name
 }
 
-output "gpu_node_zone" {
-  description = "Zone of the GPU instance"
-  value       = google_compute_instance.gpu_node.zone
+output "cpu_node_zone" {
+  description = "Zone of the CPU instance"
+  value       = google_compute_instance.cpu_node.zone
 }
 
 output "iap_ssh_command" {
-  description = "Command to SSH into the GPU node via IAP"
-  value       = "gcloud compute ssh ${google_compute_instance.gpu_node.name} --zone=${google_compute_instance.gpu_node.zone} --tunnel-through-iap"
+  description = "Command to SSH into the CPU node via IAP"
+  value       = "gcloud compute ssh ${google_compute_instance.cpu_node.name} --zone=${google_compute_instance.cpu_node.zone} --tunnel-through-iap"
 }

@@ -1,0 +1,14 @@
+{
+    "benchmark_results": {
+        "thoi_gian_load_data_giay": 2.4074,
+        "thoi_gian_training_giay": 27.7002,
+        "best_iteration": "N/A",
+        "auc_roc": 0.9481,
+        "accuracy": 0.9995,
+        "f1_score": 0.8506,
+        "precision": 0.9737,
+        "recall": 0.7551,
+        "inference_latency_1_row_ms": 14.8027,
+        "inference_throughput_1000_rows_giay": 0.0256
+    }
+}
